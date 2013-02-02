@@ -1,0 +1,10 @@
+# The directory where packages are prepared
+build
+
+# Any package created
+*.bzip
+*.tar.bz
+*.tar.gz
+*.tgz
+*.zip
+

@@ -1,0 +1,583 @@
+#!/usr/bin/env php
+<?php
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * vim: set expandtab tabstop=4 shiftwidth=4 softtabstop=4 textwidth=75: *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Mathias Hennig wrote this script. As long as you retain this notice   *
+ * you can do whatever you want with this stuff. If we meet some day and *
+ * you think this stuff is worth it, you can buy me a beer in return.    *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* Check whether the PDO module is available: */
+assert("class_exists('PDO')");
+
+/* Check whether the SQLite module is avaialable: */
+//assert("function_exists('sqlite_open')");
+/* Check whether the PostgreSQL module is available: */
+//assert("function_exists('pg_connect')");
+/* Check whether the MySQL module is available: */
+//assert("function_exists('mysqli_connect')");
+
+/**
+ *  The PDO_QUERY_SYSTEM_CONFIG constant represents the path pdo-query(1)
+ *  shall look for a system-wide configuration file, if any.
+ *  This will, most likely, work on UNIX-like systems only - where it'll
+ *  resolve to "/etc/pdo-query.ini".
+ *
+ *  @var string
+ */
+define("PDO_QUERY_SYSTEM_CONFIG", sprintf(
+    "%1\$setc%1\$spdo-query.ini", DIRECTORY_SEPARATOR
+));
+
+/**
+ *  The PDO_QUERY_USER_CONFIG constant represents the path pdo-query(1)
+ *  shall look for a user-specific configuration file, if any.
+ *  For e.g. UNIX-like systems this should be "$HOME/.pdo-query.ini".
+ *
+ *  @var string
+ */
+define("PDO_QUERY_USER_CONFIG", sprintf(
+    "%s%s.pdo-query.ini", @$_SERVER["HOME"], DIRECTORY_SEPARATOR
+));
+
+/**
+ *  The default enclosure to use in the output
+ *  
+ *  @var string
+ */
+define("PDO_QUERY_DEFAULT_DELIMITER", ",");
+
+/**
+ *  The default delimiter to use in the output
+ *
+ *  @var string
+ */
+define("PDO_QUERY_DEFAULT_ENCLOSURE", "\"");
+
+/**
+ *  The exit code returned in case of success
+ *
+ *  @var int
+ */
+define("PDO_QUERY_STATUS_SUCCESS", 0);
+
+/**
+ *  The exit code returned in case of failure
+ *
+ *  @var int
+ */
+define("PDO_QUERY_STATUS_ERROR", 1);
+
+/** 
+ *  Provide a usage hint
+ *
+ *  The print_usage_hint() function is used to write information about
+ *  the script's interface to the output stream $fd.
+ *  The $message string, if any, will be printed before - followed by a
+ *  newline character.
+ *
+ *  @param  resource    $fd
+ *  @param  string      $message
+ */
+function print_usage_hint($fd)
+{
+    $runtime_name = get_runtime_name();
+    $usage_hint = <<<"END"
+Usage:  $runtime_name [-a..] [-c..] [-d..] [-e..] [-q/t..]
+        $runtime_name [-s..] [-u..] [-t..] [-d..] [-e..] [-q/t..]
+        $runtime_name -h
+        $runtime_name -s mysql:host=127.0.0.1 -q 'show databases'
+
+Description:
+
+    -a \$alias, --alias ...
+        Use the already configured authentication \$alias 
+    -c \$configuration, --configuration .., --config ...
+        Register the given \$configuration file
+    -d \$delimiter, --delimiter .., --delim ...
+        Use the given \$delimiter as column separator
+    -e \$enclosure, --enclosure .., --enc ...
+        Use the given \$enclosure as quoting character
+    -h, --help, -?
+        Print this message and exit
+    -n, --no-header, --omit-header
+        Omit the column names / header line
+    -p \$password, --password .., --pw ...
+        Use the given \$password for authentication
+    -q \$query, --query ...
+        Use the given \$query to gather the information to be dumped
+    -s \$source, --source .., --dsn ...
+        Use the given \$source as DSN (DataSourceName) to initialize PDO
+    -t \$table, --table ...
+            Use the given \$table's data as information to be dumped
+    -u \$username, --username .., --user ...
+            Use the given \$username for authentication
+
+
+END;
+    if ("\n" !== PHP_EOL) {
+        $usage_hint = explode("\n", $usage_hint);
+        $usage_hint = implode(PHP_EOL, $usage_hint);
+    }
+
+    fwrite($fd, $usage_hint);
+}
+
+/**
+ *  Primary function
+ *
+ *  The main() function is the central or primary function of the
+ *  pdo-query(1) script. It'll parse the options array $argv, perform
+ *  the query and print the data in CSV format.
+ *
+ *  @param  array   $argv
+ *
+ *  @return int
+ */
+function main(array $argv)
+{
+    try {
+        $options = get_options($argv);
+        $pdo = create_pdo($options);
+        $query = create_query($options);
+        $data = $pdo->query($query);
+        is_bool($data) || print_csv_data($data, $options);
+        return PDO_QUERY_STATUS_SUCCESS;
+    }
+    catch (Exception $error) {
+        $error_message = $error->getMessage();
+        print_error_message($error_message);
+        return PDO_QUERY_STATUS_ERROR;
+    }
+}
+
+/**
+ *  Combine CLI parameter and configuration
+ *
+ *  The get_options() method is used to handle any options passed
+ *  as $argv to the script. It'll also check for configuration options
+ *  according to the defauls and the provided parameters.
+ *
+ *  @param  array           $argv
+ *  @return array
+ *
+ *  @throws InvalidArgumentException
+ *          Raised in case an unrecognized option is encountered
+ *
+ *  @throws RuntimeException
+ *          Raised in case a configuration file is malformed
+ */
+function get_options(array $argv)
+{
+    $callbacks = get_option_handlers();
+    $options = array("header" => true, "config" => array(
+            PDO_QUERY_SYSTEM_CONFIG, PDO_QUERY_USER_CONFIG));
+    $junk_options = custom_getopt($callbacks, $argv, $options);
+
+    if (0 === count($junk_options)) {
+
+        if (isset($options["alias"])) {
+
+            $config = get_configuration($options);
+
+            if (isset($config[$options["alias"]])) {
+                $config = $config[$options["alias"]];
+                $options = array_merge(array(
+                    "source" => @$config["dsn"],
+                    "username" => @$config["user"],
+                    "password" => @$config["pw"],
+                ),  $options
+                );
+            }
+            else throw new InvalidArgumentException(sprintf(
+                "Could not find configuration for \"%s\" alias",
+                $options["alias"]
+            ));
+        }
+
+        return $options;
+    }
+
+    throw new InvalidArgumentException(sprintf(
+        "Unknown parameter: %s", implode(", ", $junk_options)
+    ));
+}
+
+/**
+ *  Obtain configuration, if any
+ *
+ *  The get_configuration() function is used to search through
+ *  configuration files for "dsn", "user" and "pw" associated with
+ *  the $options "alias", if any.
+ *
+ *  @param  array           $options
+ *  @return array
+ *
+ *  @throws RuntimeException
+ *          Raised in case a configuration file is malformed
+ */
+function get_configuration(array $options)
+{
+    $config = array();
+
+    foreach ($options["config"] as $path) {
+        if (is_file($path) && is_readable($path)) {
+            if ($parsed_config = parse_ini_file($path, true)) {
+                $config = array_merge_recursive($config, $parsed_config);
+            }
+            else if (false === $parsed_config) {
+                throw new RuntimeException(sprintf(
+                    "Failed to parse *.INI file \"%s\"", $path
+                ));
+            }
+        }
+    }
+
+    return $config;
+}
+
+/**
+ *  Create a PDO instance
+ *
+ *  The create_pdo() function is used to instantiate a PDO object
+ *  according to the given $options:
+ *
+ *- *dsn*:                  The Data Source Name
+ *- *username*:             The name of the user to login, if any
+ *- *password*:             The authentication password, if any
+ *
+ *  @param  array           $options
+ *
+ *  @return PDO
+ *
+ *  @throws PDOException
+ *          Raised in case the DSN and/or the credentials are invalid
+ */
+function create_pdo(array $options)
+{
+    $dsn = @$options["source"];
+    $username = @$options["username"];
+    $password = @$options["password"];
+
+    $pdo = new PDO($dsn, $username, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    return $pdo;
+}
+
+/**
+ *  Create a query string
+ *
+ *  The create_query() function is used to ensure a query string to
+ *  be available, which will be either the one passed in the $options
+ *  array as "query" or a generated one selecting everything from the
+ *  given "table".
+ *
+ *  @param  array           $options
+ *  @return string
+ *
+ *  @throws InvalidArgumentException
+ *          Raised in case neither a "query" nor a "table" was given
+ */
+function create_query(array $options)
+{
+    if (isset($options["query"])) {
+        return (string) $options["query"];
+    }
+
+    if (isset($options["table"])) {
+        return "SELECT * FROM " . $options['table'];
+    }
+
+    if ($query = stream_get_contents(STDIN)) {
+        return $query;
+    }
+
+    throw new InvalidArgumentException(
+        "Neither a query nor a table name has been specified"
+    );
+}
+
+/**
+ *  Output PDO result as CSV
+ *
+ *  The print_csv_data() function is used to finally output the data held
+ *  by the PDO statement result $data. It will format the output as comma
+ *  separated values - according to the given $options:
+ *
+ *- *delimiter*:            The character to separate the CSV fields
+ *- *enclosure*:            The character to enquote the CSV fields
+ *- *header*:               Whether to print the CSV header line
+ *
+ *  @param  PDOStatement    $data
+ *  @param  array           $options
+ *
+ *  @link   http://php.net/manual/en/class.pdostatement.php
+ *  @link   http://php.net/manual/en/function.fputcsv.php
+ */
+function print_csv_data(PDOStatement $data, array $options)
+{
+    $default_options = array(
+        "delimiter" => PDO_QUERY_DEFAULT_DELIMITER,
+        "enclosure" => PDO_QUERY_DEFAULT_ENCLOSURE,
+    );
+
+    $new_options = array_merge($default_options, $options);
+
+    $delimiter = stripcslashes($new_options["delimiter"]);
+    $enclosure = stripcslashes($new_options["enclosure"]);
+
+    if ($options["header"]) {
+        if ($row = $data->fetch(PDO::FETCH_ASSOC)) {
+            fputcsv(STDOUT, array_keys($row), $delimiter, $enclosure);
+            fputcsv(STDOUT, array_values($row), $delimiter, $enclosure);
+        }
+    }
+
+    while ($row = $data->fetch(PDO::FETCH_NUM)) {
+        fputcsv(STDOUT, $row, $delimiter, $enclosure);
+    }
+}
+
+/**
+ *  Map options to callbacks
+ *
+ *  The get_option_handlers() function is used to map available flags
+ *  (options that have only one character) and regular options to callback
+ *  functions.
+ *
+ *  @return array
+ */
+function get_option_handlers()
+{
+    $map = array(
+        "a" => "alias", 
+        "c" => "config",        "configuration" => "config",
+        "d" => "delimiter",     "delim" => "delimiter",
+        "e" => "enclosure",     "enc" => "enclosure",
+        "h" => "help",          "?" => "help",
+        "n" => "no-header",     "omit-header" => "no-header",
+        "p" => "password",      "pw" => "password",
+        "q" => "query",
+        "s" => "source",        "dsn" => "source",
+        "t" => "table",
+        "u" => "username",      "user" => "username",
+    );
+
+    $options = array_fill_keys(
+        array(
+            "alias", "delimiter", "enclosure", "password",
+            "source", "username"
+        ),
+        function($key, array &$argv, array &$data) use(&$map) {
+            isset($map[$key]) && ($key = $map[$key]);
+            $data[$key] = custom_getopt_arg($key, $argv);
+        }
+    );
+
+    $options["query"] = function($key, array &$argv, array &$data) {
+        $data["table"] = null;
+        $data["query"] = custom_getopt_arg($key, $argv);
+    };
+
+    $options["table"] = function($key, array &$argv, array &$data) {
+        $data["query"] = null;
+        $data["table"] = custom_getopt_arg($key, $argv);
+
+    };
+
+    $options["config"] = function($key, array &$argv, array &$data) {
+        if (is_file($value) && is_readable($value)) {
+            $data["config"][] = (string) $value;
+        } else {
+            fprintf(STDERR, sprintf("Could not read \"%s\"", $value));
+            exit(1);
+        }
+    };
+
+    $options["help"] = function($key, array &$argvv, array &$options) {
+        print_usage_hint(STDOUT);
+        exit(0);
+    };
+
+    $options["no-header"] = function($key, array &$argv, array &$data) {
+        $data["header"] = false;
+    };
+
+    foreach ($map as $key => $value) {
+        assert("isset(\$options[\"$value\"])");
+        $options[$key] = $options[$value];
+    }
+
+    return $options;
+}
+
+/**
+ *  Parse options
+ *
+ *  The custom_getopt() function has been introduced due to the fact that
+ *  PHP's builtin getopt() function is much too quirky. It is used to parse
+ *  the options provided in the $argv array by utilizing the $callbacks
+ *  and storing the results in the $data array.
+ *  It returns all items in $argv that are not considered options any more.
+ *
+ *  @param  array           $callbacks
+ *  @param  array           $argv
+ *  @param  array           $data
+ *
+ *  @return array
+ *
+ *  @throws InvalidArgumentException
+ *          Raised in case an unrecognized option is encountered
+ *  
+ */
+function custom_getopt(array $callbacks, array $argv, array &$data)
+{
+    for(array_shift($argv); count($argv);) {
+
+        if (preg_match("/^--(.+)\$/", $argv[0], $matches)) {
+            array_shift($argv);
+            custom_getopt_long($callbacks, $argv, $data, $matches[1]);
+            continue;
+        }
+
+        if (preg_match("/^-([^\\-].*)\$/", $argv[0], $matches)) {
+            array_shift($argv);
+            custom_getopt_short($callbacks, $argv, $data, $matches[1]);
+            continue;
+        }
+
+        "--" === $argv[0] && array_shift($argv);
+        break;
+    }
+
+    return $argv;
+}
+
+/** 
+ *  Process long options
+ *
+ *  The custom_getopt_long() function is used to process so-called
+ *  "long" options (those prefixed with two "-" signs).
+ *
+ *  @param  array       $callbacks
+ *  @param  array       $argv
+ *  @param  array       $data
+ *  @param  string      $option
+ *
+ *  @throws InvalidArgumentException
+ *          Raised in case the $option is not recognized
+ */
+function custom_getopt_long(
+    array $callbacks, array &$argv, array &$data, $option
+) {
+    if (isset($callbacks[$option])) {
+        $handler = $callbacks[$option];
+        $handler($option, $argv, $data);
+    }
+    else {
+        print_usage_hint(STDERR, sprintf(
+            "Unknown option: %s%s",
+            1 === strlen($option)? "-": "--", $option
+        ));
+        exit(1);
+    }
+}
+
+/**
+ *  Parse short options
+ *
+ *  The custom_getopt_short() function is used to process so-called
+ *  "short" options (those prefixed with a signle "-" that can appear
+ *  in bulks).
+ *
+ *  @param  array       $callbacks
+ *  @param  array       $argv
+ *  @param  array       $data
+ *  @param  string      $flags
+ *
+ *  @throws InvalidArgumentException
+ *          Raised in case any of the $flags is not recognized
+ */
+function custom_getopt_short(
+    array $callbacks, array &$argv, array &$data, $flags
+) {
+    for ($i = 0; isset($flags[$i]); ++$i) {
+        custom_getopt_long($callbacks, $argv, $data, $flags[$i]);
+    }
+}
+
+/**
+ *  Fetch an option parameter
+ *
+ *  The custom_getopt_arg() method is used inside some of the callbacks
+ *  returned by get_option_handlers() to retrieve the parameter subsequent
+ *  to the currently processed option.
+ *
+ *  @param  string          $option
+ *  @param  array           $argv
+ *
+ *  @return string
+ *
+ *  @throws InvalidArgumentException
+ *          Raised in case $argv does not contain any further items
+ */
+function custom_getopt_arg($option, array &$argv)
+{
+    if (0 !== count($argv)) {
+        return (string) array_shift($argv);
+    }
+
+    throw new InvalidArgumentException(sprintf(
+        "The \"%s\" option requires a parameter", $option
+    ));
+}
+
+/**
+ *  Print a prefixed error message
+ *
+ *  The print_error_message() function will output the given $message on
+ *  STDERR, prefixed by the basename() of the running script and followed
+ *  by the OS' newline character(s).
+ *
+ *  @param  string          $message
+ */
+function print_error_message($message)
+{
+    $runtime_name = get_runtime_name();
+    fprintf(STDERR, "%s: %s%s", $runtime_name, $message, PHP_EOL);
+}
+
+/**
+ *  Obtain the runtime's path
+ *
+ *  The get_runtime_path() function will return the path of the runtime.
+ *  This corresponds to $_SERVER["argv"][0] if available. Otherwise, this
+ *  will fallback to __FILE__.
+ *
+ *  @return string
+ */
+function get_runtime_path()
+{
+    $path = isset($_SERVER["argv"][0])? $_SERVER["argv"][0]: __FILE__;
+    return $path;
+}
+
+/**
+ *  Obtain the runtime's name
+ *
+ *  The get_runtime_name() function will return the basename() of the 
+ *  runtime's path.
+ *
+ *  @return string
+ */
+function get_runtime_name()
+{
+    $path = get_runtime_path();
+    return basename($path);
+}
+
+/* Over & out */
+exit(main($_SERVER["argv"]));
+

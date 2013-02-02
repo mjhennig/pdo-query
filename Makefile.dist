@@ -1,0 +1,42 @@
+# ------------------------------------------------------------------------
+# vim: set noexpandtab tabstop=4 textwidth=75                            :
+# ------------------------------------------------------------------------
+# This is the installer script for the pdo-query(1) tool and the files   :
+# it ships with (e.g. the manual page).                                  :
+# ------------------------------------------------------------------------
+
+##
+# A path to prepend before the installation paths
+ifeq "$(PREFIX)" ""
+PREFIX = /usr/local
+endif
+
+##
+# This section can be used to override the utilities called
+dirname=dirname
+install=install
+
+##
+# The default target is just a usage hint..
+help:
+	@echo "Usage: sudo make install"
+	@echo "       PREFIX=\$$HOME make install"
+
+##
+# .. that explains how to install the software
+install: \
+		bin/pdo-query.tool-install \
+		share/pdo-query/pdo-query.example.ini.file-install \
+		man/man1/pdo-query.1.file-install
+
+##
+# An internal target used to install executables
+%.tool-install: $*
+	$(install) -pm 755 "$*" -D "$(PREFIX)/$*"
+
+##
+# An internal target used to install static files
+%.file-install: $*
+	$(install) -pm 644 "$*" -D "$(PREFIX)/$*"
+
+

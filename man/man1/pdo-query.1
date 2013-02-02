@@ -1,0 +1,158 @@
+.TH PDO\-QUERY 1 "February 2013" "Matze's Toolbox" "Shell Utilities"
+
+.SH NAME
+pdo-query \- the universal RDBMS client / CSV dumper
+
+.SH SYNOPSIS
+.nf
+.BR "pdo-query " "[-a..] [-c..] [-d..] [-e..] [-q/t..]"
+.BR "pdo-query " "[-s..] [-u..] [-t..] [-d..] [-e..] [-q/t..]"
+.BR "pdo-query " "-h"
+.BR "pdo-query " "-s sqlite:/tmp/meta.sq3 -q 'SELECT * FROM my_data'"
+.fi
+
+.SH DESCRIPTION
+.RB "The " pdo\-query " utility eases querying common RDBMS systems and "
+.RB "dumping the results as CSV data."
+.RB "Beside the possibility to specifiy CSV formatting options, the tool "
+.RB "provides a flexible way to pre\-configure and alias connections and "
+.RB "credentials. This allows users and script authors to refer to any "
+.RB "ressource by name, whilst e.g. the administrator can create and "
+.RB "update the configuration at any time."
+
+.SH OPTIONS
+.TP
+.BR "\-a " alias ", \-\-alias " ...
+.RB "Use the configured " alias ", as described in the " CONFIGURATION
+.RB "section. This allows to store various connection credentials \- "
+.RB "without the need to remember each detail."
+.TP
+.BR "\-c " configuration ", \-\-configuration " ... ", \-\-config " ...
+.RB "Register the given " configuration " file to be used in addition to "
+.RB "the default files, as described in the " CONFIGURATION " section."
+.TP
+.BR "\-d " delimiter ", \-\-delimiter " ... ", \-\-delim " ...
+.RB "Use the given " delimiter " to separate the fields in the CSV "
+.RB "output, if any. This option defaults to a comma."
+.TP
+.BR "\-e " enclosure ", \-\-enclosure " ... ", \-\-enc " ...
+.RB "Use the given " enclosure " to quote the fields in the CSV output, "
+.RB "if any. This option defaults to a double quote."
+.TP
+.BI "\-h, \-\-help, \-?"
+.RI "Print a help message and exit."
+.TP
+.BR "\-n, \-\-no-header, \-\-omit-header"
+.RB "Omit the first line (containing the column names) from the CSV "
+.RB "output, if any."
+.TP
+.BR "\-p " password ", \-\-password " ... ", \-\-pw " ...
+.RB "Use the given " password " for authentication when initializing "
+.RB "the PDO connection."
+.TP
+.BR "\-q " query ", \-\-query " ...
+.RB "Send the given " query " to obtain the data to dump as CSV, if any."
+.TP
+.BR "\-s " source ", \-\-source " ... ", \-\-dsn " ...
+.RB "Use the given " source " as data source name (DSN) to initialize "
+.RB "the PDO connection. Please refer to the PDO documentation at "
+.IR http://www.php.net/manual/en/pdo.construct.php " for further "
+.RB "information."
+.TP
+.BR "\-t " table ", \-\-table " ...
+.RB "Dump the entire data of the given " table " instead of using an "
+.RB "explicit query. This is a shortcut for using " \-\-query " to "
+.RB "'" "SELECT * FROM table" "'."
+.TP
+.BR "\-u " username ", \-\-username " ... ", \-\-user " ...
+.RB "Use the given " username " for authentication when initializing "
+.RB "the PDO connection."
+
+.SH CONFIGURATION
+.RB "The " "\-\-dsn" ", " "\-\-user" " and " "\-\-pw" " options can be "
+.RB "stored in configuration files, for later reference via " "\-\-alias" .
+.RB "The order in which these files are searched for and processed is as "
+.RB "follows:"
+
+.nf
+	1. System\-wide configuration: /etc/pdo\-query.ini
+	2. User\-specific configuration: $HOME/.pdo\-query.ini
+	3. Requested configuration (via e.g. \-\-config)
+.fi
+
+.RB "The syntax of the configuration files is a pretty self\-explanatory "
+.RB "INI\-file dialect. The following examples demonstrate the basic use: "
+
+.nf
+	; [alias]
+	; dsn = driver:driver\-specific\-options
+	; user = username
+	; pw = password
+
+	[sqlite\-example]
+	dsn = "sqlite:/tmp/my\-database.sq3"
+
+	[postgresql\-example]
+	dsn = "pgsql:host=postgres.example.com;dbname=example"
+	user = "john\-doe"
+	pw = "c0nf1d3nt1@l"
+
+	[mysql\-example]
+	dsn = "mysql:host=mysql.example.com"
+	user = "jane\-doe"
+	pw = "s3cr3t"
+.fi
+
+.RB "Note that directives in configuration files can override each other "
+.RB "when using the same alias. Also, the " "\-\-dsn" ", " "\-\-user"
+.RB " and " "\-\-pw" " options override the configuration when passed to "
+.BR "pdo\-query" " AFTER the " "\-\-alias" " directive (and vice\-versa)."
+
+.SH EXAMPLES
+.RB "The following examples assume that there is a database alias named "
+.BR example " (e.g. an SQLite database as demonstrated in the previous "
+.RB "section) configured and running:"
+
+.nf
+	pdo\-query \-a example <<<'CREATE TABLE data (key TEXT, value TEXT)'
+	pdo\-query \-a example \-q 'INSERT INTO data VALUES ("foo", "bar")'
+
+	pdo\-query \-a example \-q 'SELECT * FROM data'
+	key,value
+	foo,bar
+
+	pdo\-query \-s sqlite:/tmp/my\-database.sq3 \-t data
+	key,value
+	foo,bar
+
+	pdo\-query \-a example \-t data -n
+	foo,bar
+
+	pdo\-query \-d \\; -a example \-t data
+	key;value
+	foo;bar
+.fi
+
+.RB "Note that in case there's no data at all the column names aren't "
+.RB "written either:"
+
+.nf
+	pdo\-query \-a example \-q 'DELETE FROM data'
+	pdo\-query \-a example \-t data
+.fi
+
+.SH SUPPORTED SYSTEMS
+.RI "See " http://www.php.net/manual/en/pdo.drivers.php
+
+.SH BUGS
+.RB "Probably infinite."
+
+.SH SEE ALSO
+.BR sqlite "(1), "psql "(1), " mysql "(1), " php "(1)"
+
+.SH COPYING
+Mathias J. Hennig wrote this script and it's manual page. As long as you
+retain this notice you can do whatever you want with this stuff.
+If we meet some day, and you think this stuff is worth it, you can buy me
+a beer in return.
+
