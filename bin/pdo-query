@@ -110,9 +110,9 @@ Description:
     -s \$source, --source .., --dsn ...
         Use the given \$source as DSN (DataSourceName) to initialize PDO
     -t \$table, --table ...
-            Use the given \$table's data as information to be dumped
+        Use the given \$table's data as information to be dumped
     -u \$username, --username .., --user ...
-            Use the given \$username for authentication
+        Use the given \$username for authentication
 
 
 END;
@@ -388,6 +388,7 @@ function get_option_handlers()
     };
 
     $options["config"] = function($key, array &$argv, array &$data) {
+        $value = custom_getopt_arg($key, $argv);
         if (is_file($value) && is_readable($value)) {
             $data["config"][] = (string) $value;
         } else {
