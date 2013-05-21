@@ -99,6 +99,8 @@ Description:
         Use the given \$delimiter as column separator
     -e \$enclosure, --enclosure .., --enc ...
         Use the given \$enclosure as quoting character
+    -f \$fields, --fields ...
+        Comma-separated list of fields, only these will be included in the output    
     -h, --help, -?
         Print this message and exit
     -n, --no-header, --omit-header
@@ -300,6 +302,36 @@ function create_query(array $options)
 }
 
 /**
+ * Filter data row
+ * 
+ * This function makes sure that only selected fields (if any) are being
+ * returned.  
+ *
+ * @param  array       $row     a data row
+ * @param  array|null  $filter  valid field names
+ *
+ * @throws InvalidArgumentException 
+ *         Raised in case a not-existing field name was used as filter
+ */
+function filter_row( array $row, array $filter = null ) 
+{
+    
+    if( null === $filter ) {
+        return $row;
+    }
+       
+    $data = array();
+    foreach( $filter as $f ) {
+        if( !array_key_exists( $f, $row ) ) {
+            throw new InvalidArgumentException( "Invalid field name '$f'" );    
+        }
+        $data[] = $row[ $f ];
+    }
+    return $data;
+    
+}
+
+/**
  *  Output PDO result as CSV
  *
  *  The print_csv_data() function is used to finally output the data held
@@ -330,13 +362,20 @@ function print_csv_data(PDOStatement $data, array $options)
 
     if ($options["header"]) {
         if ($row = $data->fetch(PDO::FETCH_ASSOC)) {
-            fputcsv(STDOUT, array_keys($row), $delimiter, $enclosure);
-            fputcsv(STDOUT, array_values($row), $delimiter, $enclosure);
+            
+            $first_row = filter_row( $row, $options["fields"] );
+            fputcsv(STDOUT, 
+                null === $options["fields"] 
+                    ? array_keys($row) 
+                    : $options["fields"],
+                $delimiter, $enclosure
+            );
+            fputcsv(STDOUT, $first_row, $delimiter, $enclosure);
         }
     }
 
-    while ($row = $data->fetch(PDO::FETCH_NUM)) {
-        fputcsv(STDOUT, $row, $delimiter, $enclosure);
+    while ($row = $data->fetch(PDO::FETCH_ASSOC)) {
+        fputcsv(STDOUT, filter_row( $row, $options["fields"] ), $delimiter, $enclosure);
     }
 }
 
@@ -363,6 +402,7 @@ function get_option_handlers()
         "s" => "source",        "dsn" => "source",
         "t" => "table",
         "u" => "username",      "user" => "username",
+        "f" => "fields",        "fields" => "fields"
     );
 
     $options = array_fill_keys(
@@ -404,6 +444,10 @@ function get_option_handlers()
 
     $options["no-header"] = function($key, array &$argv, array &$data) {
         $data["header"] = false;
+    };
+    
+    $options["fields"] = function( $key, array &$argv, array &$data) {
+        $data["fields"] = explode( ',', custom_getopt_arg($key, $argv) );
     };
 
     foreach ($map as $key => $value) {
