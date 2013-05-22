@@ -262,9 +262,10 @@ function create_pdo(array $options)
     $username = @$options["username"];
     $password = @$options["password"];
 
-    $pdo = new PDO($dsn, $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $attrs[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET NAMES utf8";
+    $attrs[PDO::ATTR_ERRMODE] = PDO::ERRMODE_EXCEPTION;
 
+    $pdo = new PDO($dsn, $username, $password, $attrs);
     return $pdo;
 }
 
