@@ -39,6 +39,10 @@ pdo-query \- the universal RDBMS client / CSV dumper
 .RB "Use the given " enclosure " to quote the fields in the CSV output, "
 .RB "if any. This option defaults to a double quote."
 .TP
+.BR "\-f " fields ", \-\-fields " ... 
+.RB "Comma-separated list of " field\ names ", only these fields will be " 
+.RB "included in the output."
+.TP
 .BI "\-h, \-\-help, \-?"
 .RI "Print a help message and exit."
 .TP
@@ -151,7 +155,7 @@ pdo-query \- the universal RDBMS client / CSV dumper
 .BR sqlite "(1), "psql "(1), " mysql "(1), " php "(1)"
 
 .SH COPYING
-Mathias J. Hennig wrote this script and it's manual page. As long as you
+Mathias J. Hennig wrote this script and its manual page. As long as you
 retain this notice you can do whatever you want with this stuff.
 If we meet some day, and you think this stuff is worth it, you can buy me
 a beer in return.
