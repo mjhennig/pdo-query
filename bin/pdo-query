@@ -354,21 +354,23 @@ function print_csv_data(PDOStatement $data, array $options)
     $default_options = array(
         "delimiter" => PDO_QUERY_DEFAULT_DELIMITER,
         "enclosure" => PDO_QUERY_DEFAULT_ENCLOSURE,
+        "fields"    => null,
     );
 
     $new_options = array_merge($default_options, $options);
 
     $delimiter = stripcslashes($new_options["delimiter"]);
     $enclosure = stripcslashes($new_options["enclosure"]);
-
+    $fields    = $new_options["fields"];
+    
     if ($options["header"]) {
         if ($row = $data->fetch(PDO::FETCH_ASSOC)) {
             
-            $first_row = filter_row( $row, $options["fields"] );
+            $first_row = filter_row( $row, $fields );
             fputcsv(STDOUT, 
-                null === $options["fields"] 
+                null === $fields 
                     ? array_keys($row) 
-                    : $options["fields"],
+                    : $fields,
                 $delimiter, $enclosure
             );
             fputcsv(STDOUT, $first_row, $delimiter, $enclosure);
@@ -376,7 +378,7 @@ function print_csv_data(PDOStatement $data, array $options)
     }
 
     while ($row = $data->fetch(PDO::FETCH_ASSOC)) {
-        fputcsv(STDOUT, filter_row( $row, $options["fields"] ), $delimiter, $enclosure);
+        fputcsv(STDOUT, filter_row( $row, $fields ), $delimiter, $enclosure);
     }
 }
 
