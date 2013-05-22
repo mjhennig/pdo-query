@@ -40,15 +40,19 @@ OPTIONS
               Use the given enclosure to quote the fields in the  CSV  output,
               if any. This option defaults to a double quote.
 
+       -f fields, --fields ...
+              Comma-separated  list  of field names, only these fields will be
+              included in the output.
+
        -h, --help, -?
               Print a help message and exit.
 
        -n, --no-header, --omit-header
-              Omit  the  first line (containing the column names) from the CSV
+              Omit the first line (containing the column names) from  the  CSV
               output, if any.
 
        -p password, --password ..., --pw ...
-              Use the given password for authentication when initializing  the
+              Use  the given password for authentication when initializing the
               PDO connection.
 
        -q query, --query ...
@@ -61,17 +65,17 @@ OPTIONS
               information.
 
        -t table, --table ...
-              Dump the entire data of the given  table  instead  of  using  an
-              explicit  query. This is a shortcut for using --query to 'SELECT
+              Dump  the  entire  data  of  the given table instead of using an
+              explicit query. This is a shortcut for using --query to  'SELECT
               * FROM table'.
 
        -u username, --username ..., --user ...
-              Use the given username for authentication when initializing  the
+              Use  the given username for authentication when initializing the
               PDO connection.
 
 
 CONFIGURATION
-       The  --dsn,  --user  and  --pw  options  can be stored in configuration
+       The --dsn, --user and --pw  options  can  be  stored  in  configuration
        files, for later reference via --alias.  The order in which these files
        are searched for and processed is as follows:
 
@@ -79,7 +83,7 @@ CONFIGURATION
             2. User-specific configuration: $HOME/.pdo-query.ini
             3. Requested configuration (via e.g. --config)
 
-       The  syntax  of  the  configuration  files is a pretty self-explanatory
+       The syntax of the configuration  files  is  a  pretty  self-explanatory
        INI-file dialect. The following examples demonstrate the basic use:
 
             ; [alias]
@@ -100,15 +104,15 @@ CONFIGURATION
             user = "jane-doe"
             pw = "s3cr3t"
 
-       Note that directives in configuration files  can  override  each  other
-       when  using  the  same alias. Also, the --dsn, --user  and --pw options
-       override the configuration when passed to pdo-query AFTER  the  --alias
+       Note  that  directives  in  configuration files can override each other
+       when using the same alias. Also, the --dsn, --user   and  --pw  options
+       override  the  configuration when passed to pdo-query AFTER the --alias
        directive (and vice-versa).
 
 
 EXAMPLES
-       The  following  examples  assume  that  there is a database alias named
-       example (e.g. an SQLite database as demonstrated in the  previous  sec‐
+       The following examples assume that there  is  a  database  alias  named
+       example  (e.g.  an SQLite database as demonstrated in the previous sec‐
        tion) configured and running:
 
             pdo-query -a example <<<'CREATE TABLE data (key TEXT, value TEXT)'
@@ -129,7 +133,7 @@ EXAMPLES
             key;value
             foo;bar
 
-       Note  that in case there's no data at all the column names aren't writ‐
+       Note that in case there's no data at all the column names aren't  writ‐
        ten either:
 
             pdo-query -a example -q 'DELETE FROM data'
@@ -149,10 +153,10 @@ SEE ALSO
 
 
 COPYING
-       Mathias J. Hennig wrote this script and it's manual page.  As  long  as
-       you  retain  this  notice you can do whatever you want with this stuff.
-       If we meet some day, and you think this stuff is worth it, you can  buy
-       me a beer in return.
+       Mathias J. Hennig wrote this script and its manual page. As long as you
+       retain this notice you can do whatever you want with this stuff.  If we
+       meet  some  day, and you think this stuff is worth it, you can buy me a
+       beer in return.
 
 
 
