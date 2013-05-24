@@ -303,33 +303,33 @@ function create_query(array $options)
 }
 
 /**
- * Filter data row
+ *  Filter data row
  * 
- * This function makes sure that only selected fields (if any) are being
- * returned.  
+ *  This function makes sure that only selected fields (if any) are being
+ *  returned.  
  *
- * @param  array       $row     a data row
- * @param  array|null  $filter  valid field names
+ *  @param  array       $row     a data row
+ *  @param  array|null  $filter  valid field names
  *
- * @throws InvalidArgumentException 
- *         Raised in case a not-existing field name was used as filter
+ *  @throws InvalidArgumentException 
+ *          Raised in case a not-existing field name was used as filter
  */
-function filter_row( array $row, array $filter = null ) 
+function filter_row(array $row, array $filter = null) 
 {
-    
-    if( null === $filter ) {
+    if (null === $filter) {
         return $row;
     }
-       
+
     $data = array();
-    foreach( $filter as $f ) {
-        if( !array_key_exists( $f, $row ) ) {
-            throw new InvalidArgumentException( "Invalid field name '$f'" );    
+ 
+    foreach ($filter as $key) {
+        if (!array_key_exists($key, $row)) {
+            throw new InvalidArgumentException("Invalid field name '$key'");
         }
-        $data[] = $row[ $f ];
+        $data[] = $row[$key];
     }
+
     return $data;
-    
 }
 
 /**
@@ -365,8 +365,7 @@ function print_csv_data(PDOStatement $data, array $options)
     
     if ($options["header"]) {
         if ($row = $data->fetch(PDO::FETCH_ASSOC)) {
-            
-            $first_row = filter_row( $row, $fields );
+            $first_row = filter_row($row, $fields);
             fputcsv(STDOUT, 
                 null === $fields 
                     ? array_keys($row) 
@@ -378,7 +377,7 @@ function print_csv_data(PDOStatement $data, array $options)
     }
 
     while ($row = $data->fetch(PDO::FETCH_ASSOC)) {
-        fputcsv(STDOUT, filter_row( $row, $fields ), $delimiter, $enclosure);
+        fputcsv(STDOUT, filter_row($row, $fields), $delimiter, $enclosure);
     }
 }
 
