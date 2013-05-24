@@ -43,7 +43,7 @@ define("PDO_QUERY_USER_CONFIG", sprintf(
 
 /**
  *  The default enclosure to use in the output
- *  
+ *
  *  @var string
  */
 define("PDO_QUERY_DEFAULT_DELIMITER", ",");
@@ -69,7 +69,7 @@ define("PDO_QUERY_STATUS_SUCCESS", 0);
  */
 define("PDO_QUERY_STATUS_ERROR", 1);
 
-/** 
+/**
  *  Provide a usage hint
  *
  *  The print_usage_hint() function is used to write information about
@@ -92,7 +92,7 @@ Usage:  $runtime_name [-a..] [-c..] [-d..] [-e..] [-q/t..]
 Description:
 
     -a \$alias, --alias ...
-        Use the already configured authentication \$alias 
+        Use the already configured authentication \$alias
     -c \$configuration, --configuration .., --config ...
         Register the given \$configuration file
     -d \$delimiter, --delimiter .., --delim ...
@@ -100,7 +100,7 @@ Description:
     -e \$enclosure, --enclosure .., --enc ...
         Use the given \$enclosure as quoting character
     -f \$fields, --fields ...
-        Comma-separated list of fields, only these will be included in the output    
+        Comma-separated list of fields, only these will be included in the output
     -h, --help, -?
         Print this message and exit
     -n, --no-header, --omit-header
@@ -304,24 +304,24 @@ function create_query(array $options)
 
 /**
  *  Filter data row
- * 
+ *
  *  This function makes sure that only selected fields (if any) are being
- *  returned.  
+ *  returned.
  *
  *  @param  array       $row     a data row
  *  @param  array|null  $filter  valid field names
  *
- *  @throws InvalidArgumentException 
+ *  @throws InvalidArgumentException
  *          Raised in case a not-existing field name was used as filter
  */
-function filter_row(array $row, array $filter = null) 
+function filter_row(array $row, array $filter = null)
 {
     if (null === $filter) {
         return $row;
     }
 
     $data = array();
- 
+
     foreach ($filter as $key) {
         if (!array_key_exists($key, $row)) {
             throw new InvalidArgumentException("Invalid field name '$key'");
@@ -362,13 +362,13 @@ function print_csv_data(PDOStatement $data, array $options)
     $delimiter = stripcslashes($new_options["delimiter"]);
     $enclosure = stripcslashes($new_options["enclosure"]);
     $fields    = $new_options["fields"];
-    
+
     if ($options["header"]) {
         if ($row = $data->fetch(PDO::FETCH_ASSOC)) {
             $first_row = filter_row($row, $fields);
-            fputcsv(STDOUT, 
-                null === $fields 
-                    ? array_keys($row) 
+            fputcsv(STDOUT,
+                null === $fields
+                    ? array_keys($row)
                     : $fields,
                 $delimiter, $enclosure
             );
@@ -393,7 +393,7 @@ function print_csv_data(PDOStatement $data, array $options)
 function get_option_handlers()
 {
     $map = array(
-        "a" => "alias", 
+        "a" => "alias",
         "c" => "config",        "configuration" => "config",
         "d" => "delimiter",     "delim" => "delimiter",
         "e" => "enclosure",     "enc" => "enclosure",
@@ -447,7 +447,7 @@ function get_option_handlers()
     $options["no-header"] = function($key, array &$argv, array &$data) {
         $data["header"] = false;
     };
-    
+
     $options["fields"] = function( $key, array &$argv, array &$data) {
         $data["fields"] = explode( ',', custom_getopt_arg($key, $argv) );
     };
@@ -477,7 +477,7 @@ function get_option_handlers()
  *
  *  @throws InvalidArgumentException
  *          Raised in case an unrecognized option is encountered
- *  
+ *
  */
 function custom_getopt(array $callbacks, array $argv, array &$data)
 {
@@ -502,7 +502,7 @@ function custom_getopt(array $callbacks, array $argv, array &$data)
     return $argv;
 }
 
-/** 
+/**
  *  Process long options
  *
  *  The custom_getopt_long() function is used to process so-called
@@ -614,7 +614,7 @@ function get_runtime_path()
 /**
  *  Obtain the runtime's name
  *
- *  The get_runtime_name() function will return the basename() of the 
+ *  The get_runtime_name() function will return the basename() of the
  *  runtime's path.
  *
  *  @return string
