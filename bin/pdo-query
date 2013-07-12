@@ -268,13 +268,14 @@ function create_pdo(array $options)
     try {
     	$pdo = new PDO($dsn, $username, $password, $attrs);
     }
-    catch( PDOException $e ) {
+    catch (PDOException $error) {
     	throw new PDOException( 
-    		sprintf( "%s | DSN: %s", $e->getMessage(), $dsn ),
-    		$e->getCode(),
-    		$e
+    		sprintf("%s | DSN: %s", $error->getMessage(), $dsn),
+    		$error->getCode(),
+    		$error
     	);
     }
+
     return $pdo;
 }
 
